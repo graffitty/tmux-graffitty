@@ -1,51 +1,57 @@
-# graffitty.tmux
+# tmux-graffitty
 
 Seamless Ctrl-H/J/K/L navigation through Neovim splits, tmux panes and Graffitty
-panes. A TPM plugin with native tmux bindings and no background helper.
+panes, using native tmux bindings.
 
 ## Install with TPM
 
-This checkout is currently a local Git repository. TPM accepts its absolute
-path as the plugin source. Add it after other navigation plugins and before TPM
-initialization in `~/.tmux.conf`:
+Add the plugin before TPM initialization in `~/.tmux.conf`:
 
 ```tmux
-set -g @plugin '/absolute/path/to/graffitty.tmux'
+set -g @plugin 'graffitty/tmux-graffitty'
 run '~/.tmux/plugins/tpm/tpm'
 ```
 
-Reload your tmux config, then press **prefix + I**. TPM clones the local source
-into `~/.tmux/plugins/graffitty.tmux`. **Prefix + U** updates that clone from
-commits in the source repository. Once the repository is published, replace the
-absolute path with its Git URL or `owner/graffitty.tmux`.
+Reload with `tmux source-file ~/.tmux.conf`, then press **prefix + I** to install.
+Use Ctrl-H/J/K/L to move left/down/up/right between panes.
 
-Remove any old `source-file ~/.config/graffitty/tmux-navigator.conf` line; TPM
-loads the plugin's executable entry point automatically. Repeated loads do not
-add duplicate Graffitty environment variables.
+Keep Graffitty's `gft` command on PATH to navigate into neighboring Graffitty panes.
 
-Keep `gft` on PATH for Graffitty edge navigation. No CLI command runs when
-loading this plugin or moving between tmux panes. The Graffitty-provided
-`GRAFFITTY_BIN` is used when present.
-
-For Neovim, install `graffitty.nvim` and configure:
+For Neovim, install [graffitty.nvim](https://github.com/graffitty/graffitty.nvim)
+and configure its navigation mappings through lazy.nvim:
 
 ```lua
-require('graffitty').setup({
-  navigator = { enable_default_keybindings = true, tmux = 'auto' },
-})
+{
+  "graffitty/graffitty.nvim",
+  opts = {},
+  keys = {
+    { "<C-h>", function() require("graffitty.navigator").move_left() end, desc = "Navigate left" },
+    { "<C-j>", function() require("graffitty.navigator").move_down() end, desc = "Navigate down" },
+    { "<C-k>", function() require("graffitty.navigator").move_up() end, desc = "Navigate up" },
+    { "<C-l>", function() require("graffitty.navigator").move_right() end, desc = "Navigate right" },
+  },
+}
 ```
 
-Disable competing Neovim navigation mappings. The plugin preserves existing
-custom mappings, so another plugin can otherwise retain ownership of the keys.
+For navigation from shells outside tmux, set `[navigator] enabled = true` in
+Graffitty's `server.toml`.
+
+## Install without TPM
+
+You can instead paste the contents of
+[`scripts/navigation.conf`](scripts/navigation.conf) directly into
+`~/.tmux.conf`, after any other navigation bindings. Reload with
+`tmux source-file ~/.tmux.conf`. You can also use `source-file` with the absolute
+path to that file. Choose either this setup or the TPM plugin.
 
 ## Behavior
 
 | Key | tmux direction | Graffitty edge command |
 | --- | --- | --- |
-| Ctrl-H | left | `gft navigate left` |
-| Ctrl-J | down | `gft navigate down` |
-| Ctrl-K | up | `gft navigate up` |
-| Ctrl-L | right | `gft navigate right` |
+| Ctrl-H | left | `gft select-pane -L` |
+| Ctrl-J | down | `gft select-pane -D` |
+| Ctrl-K | up | `gft select-pane -U` |
+| Ctrl-L | right | `gft select-pane -R` |
 
 Foreground applications receive their own keys. Neovim first tries its splits,
 then tmux; shell panes move directly between tmux panes. Only an outer edge
@@ -54,12 +60,12 @@ attachment. Copy mode keeps its bindings, zoomed panes remain zoomed, and pane
 navigation never wraps. Without Graffitty, it stops at the tmux edge.
 
 One tmux layer is supported. Plain SSH retains its keys and has no local
-Graffitty handoff. Command-H remains the macOS Hide shortcut.
+Graffitty handoff.
 
 ## Development
 
 The source is vendored into Graffitty by `tools/sync_tmux_integration.py`.
-The Graffitty repository's `tests/navigator_e2e.py --tpm /path/to/tpm` installs
-this plugin with TPM in an isolated tmux server and exercises real keypresses.
-The legacy `gft navigator tmux-config` command prints the same bundled config
-for users who do not use TPM.
+The Graffitty repository's `python3 tests/navigator_container_e2e.py` installs
+this plugin with TPM and exercises real keypresses in preconfigured Neovim and
+tmux inside Podman. Its CLI/server, home directories and sockets are isolated
+from the host. A frontend protocol observer records Graffitty edge requests.
